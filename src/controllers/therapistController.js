@@ -4,26 +4,32 @@ const therapistController = {
   async postNewOrder(req, res) {
     try {
       // check if item id exists in items table
-      const { data: items, error: checkItemError } = await supabase.from('items').select().eq('item_id', req.body.item_id);
+      const { data: items, error: checkItemError } = await supabase.from('items').select().eq('order_link', req.body.order_link);
       if (checkItemError) {
         console.error('Error checking item:', checkItemError);
         return res.status(400).json({ error: checkItemError.message });
       }
+
+      let itemId;
       if (items.length === 0) {
         // insert item to items table
-        const { error: insertItemError } = await supabase.from('items').insert([
+        const { data, error: insertItemError } = await supabase.from('items').insert([
           {
-            item_id: req.body.item_id,
             order_link: req.body.order_link,
-            description: req.body.description,
             price_per_unit: req.body.price_per_unit
           },
-        ]);
+        ]).select();
         if (insertItemError) {
           console.error('Error inserting new item to items table:', insertItemError);
           return res.status(400).json({ error: insertItemError.message });
         }
+        // get item id
+        itemId = data[0].item_id;
       }
+      else {
+        itemId = items[0].item_id;
+      }
+
 
       const { error } = await supabase.from('orders').insert([
         {
@@ -34,7 +40,8 @@ const therapistController = {
           status: "pending",
           program_id: req.body.program_id,
           requestor_id: req.body.requestor_id,
-          item_id: req.body.item_id,
+          order_description: req.body.order_description,
+          item_id: itemId,
         },
       ]);
       if (error) {
