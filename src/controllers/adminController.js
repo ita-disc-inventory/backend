@@ -130,11 +130,12 @@ const adminController = {
 
   async updateBudget(req, res) {
     try {
-      const { program, budget } = req.body;
+      const program_id = req.params.program_id;
+      const { budget } = req.body;
       const { error } = await supabase
         .from("programs")
         .update({ program_budget: budget })
-        .eq("program_title", program);
+        .eq("program_id", program_id);
       if (error) {
         console.error("Error inserting new budget to programs table:", error);
         return res.status(400).json({ error: error.message });
