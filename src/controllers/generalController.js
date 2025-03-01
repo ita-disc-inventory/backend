@@ -1,4 +1,5 @@
 const supabase = require("../config/supabase");
+const { getAllUsers } = require("./authController");
 
 // const { v4: uuidv4 } = require('uuid');
 const generalController = {
