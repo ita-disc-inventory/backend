@@ -93,6 +93,21 @@ const therapistController = {
     }
   },
 
+  async updateSpecialization(req, res) {
+    try {
+      const { error } = await supabase.from('users').update({ specialization: req.body.specialization }).eq('id', req.params.user_id);
+      if (error) {
+        console.error('Error updating specialization:', error);
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(200).json({
+        message: 'specialization updated successfully',
+      });
+    } catch (error) {
+      res.status(500).json(error.message);
+    }
+  },
+
 
 };
 
