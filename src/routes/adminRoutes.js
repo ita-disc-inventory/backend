@@ -7,6 +7,6 @@ router.put("/deny/:order_id", adminController.denyOrder);
 router.put("/tracking/:order_id", adminController.addTrackingNumber);
 router.put("/arrived/:order_id", adminController.orderArrived);
 router.put("/ready/:order_id", adminController.orderReady);
-router.put("/budget/:order_id", adminController.updateBudget);
+router.put("/budget/:program_id", adminController.updateBudget);
 
 module.exports = router;
