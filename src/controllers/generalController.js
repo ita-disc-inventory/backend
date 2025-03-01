@@ -1,12 +1,18 @@
-const supabase = require('../config/supabase');
+const supabase = require("../config/supabase");
 
 // const { v4: uuidv4 } = require('uuid');
 const generalController = {
   async getOrders(req, res) {
     try {
-      const { data, error } = await supabase.from('orders').select('*');
+      // get all orders, join with users, programs, items
+      const { data, error } = await supabase
+        .from("orders")
+        .select(
+          "*, users(firstname,lastname), programs(program_title), items(*)",
+        )
+        .order("request_date", { ascending: false });
       if (error) {
-        console.error('Error getting items:', error);
+        console.error("Error getting items:", error);
         return res.status(400).json({ error: error.message });
       }
       res.status(200).json(data);
@@ -16,19 +22,17 @@ const generalController = {
   },
   async getBudget(req, res) {
     try {
-      const { data, error } = await supabase.from('programs').select('*');
+      const { data, error } = await supabase.from("programs").select("*");
       if (error) {
-        console.error('Error getting programs:', error);
+        console.error("Error getting programs:", error);
         return res.status(400).json({ error: error.message });
       }
 
       res.status(200).json(data);
-      
-    }
-    catch (error) {
+    } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  }
+  },
 };
 
 module.exports = generalController;
