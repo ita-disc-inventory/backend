@@ -3,24 +3,67 @@ const supabase = require("../config/supabase");
 const adminController = {
   async approveOrder(req, res) {
     try {
-      // check if order is not cancelled
+      // check if order is not cancelled and get program's budget
       const order_id = req.params.order_id;
-      const { data: orders, error: checkOrderError } = await supabase
-        .from("orders")
-        .select()
-        .eq("order_id", order_id)
-        .neq("status", "cancelled");
+      const [
+        { data: orders, error: checkOrderError },
+        { data: orderCostBudget, error: getCostError },
+      ] = await Promise.all([
+        supabase
+          .from("orders")
+          .select()
+          .eq("order_id", order_id)
+          .neq("status", "cancelled"),
+        supabase
+          .from("orders")
+          .select("total_cost, program_id, programs(program_budget)")
+          .eq("order_id", order_id)
+          .single(),
+      ]);
+
       if (orders.length === 0) {
         console.error("Order is cancelled");
         return res.status(400).json({ error: "Order is cancelled" });
       }
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: "approved" })
-        .eq("order_id", order_id);
-      if (error) {
-        console.error("Error approving order:", error);
-        return res.status(400).json({ error: error.message });
+      if (checkOrderError) {
+        console.error("An error occurred:", checkOrderError);
+        return res.status(400).json({ error: checkOrderError.message });
+      }
+
+      // Check for cost and budget retrieval error
+      if (getCostError) {
+        console.error("Error getting cost and budget:", getCostError);
+        return res.status(400).json({ error: getCostError.message });
+      }
+      // check if program's budget is sufficient
+      if (
+        orderCostBudget.programs.program_budget < orderCostBudget.total_cost
+      ) {
+        console.error("Insufficient budget");
+        return res.status(400).json({ error: "Insufficient budget" });
+      }
+
+      // set order status to approved and update program's budget
+      const newbudget =
+        orderCostBudget.programs.program_budget - orderCostBudget.total_cost;
+      const [{ error: orderError }, { error: budgetError }] = await Promise.all(
+        [
+          supabase
+            .from("orders")
+            .update({ status: "approved" })
+            .eq("order_id", order_id),
+          supabase
+            .from("programs")
+            .update({ program_budget: newbudget })
+            .eq("program_id", orderCostBudget.program_id),
+        ],
+      );
+
+      if (orderError || budgetError) {
+        console.error("Error processing request:", orderError || budgetError);
+        return res
+          .status(400)
+          .json({ error: orderError?.message || budgetError?.message });
       }
       res.status(200).json({ message: "Status updated to approved" });
     } catch (error) {
