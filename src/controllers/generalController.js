@@ -9,7 +9,7 @@ const generalController = {
       const { data, error } = await supabase
         .from("orders")
         .select(
-          "*, users(firstname,lastname), programs(program_title), items(*)",
+          "*, users(firstname,lastname, specialization), programs(program_title), items(*)",
         )
         .order("request_date", { ascending: false });
       if (error) {
