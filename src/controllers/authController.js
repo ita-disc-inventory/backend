@@ -32,12 +32,12 @@ const authController = {
         .from("users")
         .insert([
           {
-            username,
+            username: username || null,
             email,
             firstname: firstname || null,
             lastname: lastname || null,
             specialization: specialization || null,
-            position: position || null,
+            position_title: position || "therapist",
           },
         ])
         .select()
