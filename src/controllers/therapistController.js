@@ -22,6 +22,7 @@ const therapistController = {
             {
               order_link: req.body.order_link,
               price_per_unit: req.body.price_per_unit,
+              item_name: req.body.item_name,
             },
           ])
           .select();
