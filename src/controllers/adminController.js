@@ -50,7 +50,7 @@ const adminController = {
         [
           supabase
             .from("orders")
-            .update({ status: "approved" })
+            .update({ status: "approved", reason_for_denial: null })
             .eq("order_id", order_id),
           supabase
             .from("programs")
