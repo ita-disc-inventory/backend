@@ -36,7 +36,7 @@ const authController = {
             email,
             firstname: firstname || null,
             lastname: lastname || null,
-            specialization: specialization || [],
+            specialization: specialization || null,
             position_title: position || "therapist",
           },
         ])
