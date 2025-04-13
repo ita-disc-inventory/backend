@@ -8,5 +8,6 @@ router.put("/tracking/:order_id", adminController.addTrackingNumber);
 router.put("/arrived/:order_id", adminController.orderArrived);
 router.put("/ready/:order_id", adminController.orderReady);
 router.put("/budget/:program_id", adminController.updateBudget);
+router.put("/revert/:order_id", adminController.revertOrder);
 
 module.exports = router;

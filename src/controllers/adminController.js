@@ -3,17 +3,17 @@ const supabase = require("../config/supabase");
 const adminController = {
   async approveOrder(req, res) {
     try {
-      // check if order is not cancelled and get program's budget
+      // // first get program's budget
       const order_id = req.params.order_id;
       const [
-        { data: orders, error: checkOrderError },
+        // { data: orders, error: checkOrderError },
         { data: orderCostBudget, error: getCostError },
       ] = await Promise.all([
-        supabase
-          .from("orders")
-          .select()
-          .eq("order_id", order_id)
-          .neq("status", "cancelled"),
+        // supabase
+        //   .from("orders")
+        //   .select()
+        //   .eq("order_id", order_id)
+        //   .neq("status", "cancelled"),
         supabase
           .from("orders")
           .select("total_cost, program_id, programs(program_budget)")
@@ -21,14 +21,14 @@ const adminController = {
           .single(),
       ]);
 
-      if (orders.length === 0) {
-        console.error("Order is cancelled");
-        return res.status(400).json({ error: "Order is cancelled" });
-      }
-      if (checkOrderError) {
-        console.error("An error occurred:", checkOrderError);
-        return res.status(400).json({ error: checkOrderError.message });
-      }
+      // if (orders.length === 0) {
+      //   console.error("Order is cancelled");
+      //   return res.status(400).json({ error: "Order is cancelled" });
+      // }
+      // if (checkOrderError) {
+      //   console.error("An error occurred:", checkOrderError);
+      //   return res.status(400).json({ error: checkOrderError.message });
+      // }
 
       // Check for cost and budget retrieval error
       if (getCostError) {
@@ -70,20 +70,65 @@ const adminController = {
       res.status(500).json({ error: error.message });
     }
   },
+  async revertOrder(req, res) {
+    try {
+      // check if order is not cancelled
+      const order_id = req.params.order_id;
+      // const { data: orders, error: checkOrderError } = await supabase
+      //   .from("orders")
+      //   .select()
+      //   .eq("order_id", order_id)
+      //   .neq("status", "cancelled");
+      // if (orders.length === 0) {
+      //   console.error("Order is cancelled");
+      //   return res.status(400).json({ error: "Order is cancelled" });
+      // }
+      const { data: orderCostBudget, error: getCostError } = await supabase
+        .from("orders")
+        .select("total_cost, program_id, programs(program_budget)")
+        .eq("order_id", order_id)
+        .single()
+      if (getCostError) {
+        console.error("Error getting cost and budget:", getCostError);
+        return res.status(400).json({ error: getCostError.message });
+      }
+      
+      const newbudget =
+        orderCostBudget.programs.program_budget + orderCostBudget.total_cost;
+      const [{ error: budgetError }, { error: revertError }] = await Promise.all([
+          supabase
+            .from("programs")
+            .update({ program_budget: newbudget })
+            .eq("program_id", orderCostBudget.program_id),
+          supabase
+            .from("orders")
+            .update({ status: "pending", reason_for_denial: null })
+            .eq("order_id", order_id)])
+      if (budgetError || revertError) {
+        console.error("Error reverting order:", budgetError || revertError);
+        return res
+          .status(400)
+          .json({ error: revertError?.message || budgetError?.message });
+      }
+      res.status(200).json({ message: "Status updated to pending" });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
   async denyOrder(req, res) {
     try {
       // check if order is not cancelled
       const order_id = req.params.order_id;
       const reason = req.body.reason_for_denial;
-      const { data: orders, error: checkOrderError } = await supabase
-        .from("orders")
-        .select()
-        .eq("order_id", order_id)
-        .neq("status", "cancelled");
-      if (orders.length === 0) {
-        console.error("Order is cancelled");
-        return res.status(400).json({ error: "Order is cancelled" });
-      }
+      // const { data: orders, error: checkOrderError } = await supabase
+      //   .from("orders")
+      //   .select()
+      //   .eq("order_id", order_id)
+      //   .neq("status", "cancelled");
+      // if (orders.length === 0) {
+      //   console.error("Order is cancelled");
+      //   return res.status(400).json({ error: "Order is cancelled" });
+      // }
       // set order status to denied
       const { error } = await supabase
         .from("orders")
@@ -104,15 +149,15 @@ const adminController = {
       const { tracking_number } = req.body;
       const order_id = req.params.order_id;
       // check if order is approved
-      const { data: orders, error: checkOrderError } = await supabase
-        .from("orders")
-        .select()
-        .eq("order_id", order_id)
-        .eq("status", "approved");
-      if (orders.length === 0) {
-        console.error("Order is not approved");
-        return res.status(400).json({ error: "Order is not approved" });
-      }
+      // const { data: orders, error: checkOrderError } = await supabase
+      //   .from("orders")
+      //   .select()
+      //   .eq("order_id", order_id)
+      //   .eq("status", "approved");
+      // if (orders.length === 0) {
+      //   console.error("Order is not approved");
+      //   return res.status(400).json({ error: "Order is not approved" });
+      // }
       const { error } = await supabase
         .from("orders")
         .update({ tracking_number: tracking_number })
@@ -135,7 +180,7 @@ const adminController = {
         .update({ status: "arrived" })
         .eq("order_id", order_id);
       if (error) {
-        console.error("Error approving order:", error);
+        console.error("Error setting order to arrived:", error);
         return res.status(400).json({ error: error.message });
       }
       res.status(200).json({ message: "Status updated to arrived" });
@@ -148,21 +193,21 @@ const adminController = {
       // update order status to ready (for pickup)
       // check if order is not cancelled
       const order_id = req.params.order_id;
-      const { data: orders, error: checkOrderError } = await supabase
-        .from("orders")
-        .select()
-        .eq("order_id", order_id)
-        .eq("status", "arrived");
-      if (orders.length === 0) {
-        console.error("Order has not arrived yet");
-        return res.status(400).json({ error: "Order has not arrived yet" });
-      }
+      // const { data: orders, error: checkOrderError } = await supabase
+      //   .from("orders")
+      //   .select()
+      //   .eq("order_id", order_id)
+      //   .eq("status", "arrived");
+      // if (orders.length === 0) {
+      //   console.error("Order has not arrived yet");
+      //   return res.status(400).json({ error: "Order has not arrived yet" });
+      // }
       const { error } = await supabase
         .from("orders")
         .update({ status: "ready" })
         .eq("order_id", order_id);
       if (error) {
-        console.error("Error approving order:", error);
+        console.error("Error setting order to ready:", error);
         return res.status(400).json({ error: error.message });
       }
       res.status(200).json({ message: "Status updated to ready" });
