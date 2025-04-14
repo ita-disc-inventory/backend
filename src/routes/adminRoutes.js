@@ -9,5 +9,6 @@ router.put("/arrived/:order_id", adminController.orderArrived);
 router.put("/ready/:order_id", adminController.orderReady);
 router.put("/budget/:program_id", adminController.updateBudget);
 router.put("/revert/:order_id", adminController.revertOrder);
+router.get("/weekly", adminController.getWeeklyOrders);
 
 module.exports = router;
