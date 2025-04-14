@@ -287,6 +287,28 @@ const adminController = {
       res.status(500).json({ error: error.message });
     }
   },
+  async getWeeklyOrders(req, res) {
+    try {
+      // get today's date
+      const today = new Date();
+      const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+      // const { start_date, end_date } = req.query;
+      const { data: orders, error } = await supabase
+        .from("orders")
+        .select("*, items(*)")
+        .gte("request_date", startDate.toISOString().split('T')[0])
+        .lte("request_date", today.toISOString().split('T')[0]);
+      if (error) {
+        console.error("Error fetching weekly orders:", error);
+        return res.status(400).json({ error: error.message });
+      }
+      res.status(200).json(orders);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 };
+
+
 
 module.exports = adminController;
