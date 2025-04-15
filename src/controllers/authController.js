@@ -13,9 +13,9 @@ const authController = {
         position,
       } = req.body;
 
-      if (!email || !password || !username) {
+      if (!email || !password) {
         return res.status(400).json({
-          error: "Email, password, and username are required",
+          error: "Email and password required",
         });
       }
 
