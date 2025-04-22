@@ -82,11 +82,8 @@ const adminController = {
       const requestorEmail = requestorData.users.email;
       const itemName = requestorData.items.item_name || "<no-name-provided>";
       const itemLink = requestorData.items.order_link;
-      console.log("Requestor email:", requestorEmail);
-      // send email notification to requestor
-      // set email as console log for now
-      console.log(`Email sent to ${requestorEmail}: Your order ${itemName} for ${itemLink} has been approved.`);
-
+      this.sendEmails(requestorEmail, itemName, itemLink, "Order Approved", `Your order ${itemName} for ${itemLink} has been approved.`);
+      
 
       res.status(200).json({ message: "Status updated to approved" });
     } catch (error) {
@@ -108,31 +105,45 @@ const adminController = {
       // }
       const { data: orderCostBudget, error: getCostError } = await supabase
         .from("orders")
-        .select("total_cost, program_id, programs(program_budget)")
+        .select("total_cost, program_id, programs(program_budget), status")
         .eq("order_id", order_id)
         .single()
       if (getCostError) {
         console.error("Error getting cost and budget:", getCostError);
         return res.status(400).json({ error: getCostError.message });
       }
+      const status = orderCostBudget.status;
 
       const newbudget =
         orderCostBudget.programs.program_budget + orderCostBudget.total_cost;
-      const [{ error: budgetError }, { error: revertError }] = await Promise.all([
-        supabase
-          .from("programs")
-          .update({ program_budget: newbudget })
-          .eq("program_id", orderCostBudget.program_id),
-        supabase
+      if (status === "approved") {
+        const [{ error: budgetError }, { error: revertError }] =
+          await Promise.all([
+            supabase
+              .from("programs")
+              .update({ program_budget: newbudget })
+              .eq("program_id", orderCostBudget.program_id),
+            supabase
+              .from("orders")
+              .update({ status: "pending", reason_for_denial: null })
+              .eq("order_id", order_id)])
+        if (budgetError || revertError) {
+          console.error("Error reverting order:", budgetError || revertError);
+          return res
+            .status(400)
+            .json({ error: revertError?.message || budgetError?.message });
+        }
+      } else if (status === "denied") {
+        const { error: revertError } = await supabase
           .from("orders")
           .update({ status: "pending", reason_for_denial: null })
-          .eq("order_id", order_id)])
-      if (budgetError || revertError) {
-        console.error("Error reverting order:", budgetError || revertError);
-        return res
-          .status(400)
-          .json({ error: revertError?.message || budgetError?.message });
+          .eq("order_id", order_id);
+        if (revertError) {
+          console.error("Error reverting order:", revertError);
+          return res.status(400).json({ error: revertError.message });
+        }
       }
+
       res.status(200).json({ message: "Status updated to pending" });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -169,9 +180,8 @@ const adminController = {
       const requestorEmail = orderData.users.email;
       const itemName = orderData.items.item_name || "<no-name-provided>";;
       const itemLink = orderData.items.order_link;
-      console.log("Requestor email:", requestorEmail);
-      // send email notification to requestor
-      console.log("Email sent to " + requestorEmail + ": Your order " + itemName + " for " + itemLink + " has been denied. Reason: " + reason);
+      this.sendEmails(requestorEmail, itemName, itemLink, "Order Denied", `Your order ${itemName} for ${itemLink} has been denied. Reason: ${reason}`);
+      
       if (error) {
         console.error("Error denying order:", error);
         return res.status(400).json({ error: error.message });
@@ -261,8 +271,7 @@ const adminController = {
       const requestorEmail = orderData.users.email;
       const itemName = orderData.items.item_name || "<no-name-provided>";;
       const itemLink = orderData.items.order_link;
-      console.log("Requestor email:", requestorEmail);
-      console.log("Email sent to " + requestorEmail + ": Your order " + itemName + " for " + itemLink + " is ready for pickup.");
+      this.sendEmails(requestorEmail, itemName, itemLink, "Order Ready for Pickup", `Your order ${itemName} for ${itemLink} is ready for pickup.`);
 
       res.status(200).json({ message: "Status updated to ready" });
     } catch (error) {
@@ -306,6 +315,17 @@ const adminController = {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
+  },
+
+  // function for sending emails
+  sendEmails(requestorEmail, itemName, itemLink, emailSubject, emailBody) {
+    console.log(`Email sent to ${requestorEmail}`);
+    console.log(`Subject: ${emailSubject}`);
+    console.log(`Body: ${emailBody}`);
+    console.log(`Item: ${itemName}`);
+    console.log(`Link: ${itemLink}`);
+
+
   }
 };
 
