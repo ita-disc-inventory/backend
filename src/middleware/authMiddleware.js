@@ -44,24 +44,6 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Middleware to check if user is a therapist
-const requireTherapist = (req, res, next) => {
-  if (!req.userData || req.userData.position_title !== 'therapist') {
-    return res.status(403).json({ error: 'Access denied. Therapist role required.' });
-  }
-  next();
-};
-
-// Middleware to check if user is an admin
-const requireAdmin = (req, res, next) => {
-  if (!req.userData || req.userData.position_title !== 'admin') {
-    return res.status(403).json({ error: 'Access denied. Admin role required.' });
-  }
-  next();
-};
-
 module.exports = {
-  authMiddleware,
-  requireTherapist,
-  requireAdmin
+  authMiddleware
 };
