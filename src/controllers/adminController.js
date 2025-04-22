@@ -82,10 +82,7 @@ const adminController = {
       const requestorEmail = requestorData.users.email;
       const itemName = requestorData.items.item_name || "<no-name-provided>";
       const itemLink = requestorData.items.order_link;
-      console.log("Requestor email:", requestorEmail);
-      // send email notification to requestor
-      // set email as console log for now
-      console.log(`Email sent to ${requestorEmail}: Your order ${itemName} for ${itemLink} has been approved.`);
+      sendEmails(requestorEmail, itemName, itemLink, "Order Approved", `Your order ${itemName} for ${itemLink} has been approved.`);
 
 
       res.status(200).json({ message: "Status updated to approved" });
@@ -108,31 +105,45 @@ const adminController = {
       // }
       const { data: orderCostBudget, error: getCostError } = await supabase
         .from("orders")
-        .select("total_cost, program_id, programs(program_budget)")
+        .select("total_cost, program_id, programs(program_budget), status")
         .eq("order_id", order_id)
         .single()
       if (getCostError) {
         console.error("Error getting cost and budget:", getCostError);
         return res.status(400).json({ error: getCostError.message });
       }
+      const status = orderCostBudget.status;
 
       const newbudget =
         orderCostBudget.programs.program_budget + orderCostBudget.total_cost;
-      const [{ error: budgetError }, { error: revertError }] = await Promise.all([
-        supabase
-          .from("programs")
-          .update({ program_budget: newbudget })
-          .eq("program_id", orderCostBudget.program_id),
-        supabase
+      if (status === "approved") {
+        const [{ error: budgetError }, { error: revertError }] =
+          await Promise.all([
+            supabase
+              .from("programs")
+              .update({ program_budget: newbudget })
+              .eq("program_id", orderCostBudget.program_id),
+            supabase
+              .from("orders")
+              .update({ status: "pending", reason_for_denial: null })
+              .eq("order_id", order_id)])
+        if (budgetError || revertError) {
+          console.error("Error reverting order:", budgetError || revertError);
+          return res
+            .status(400)
+            .json({ error: revertError?.message || budgetError?.message });
+        }
+      } else if (status === "denied") {
+        const { error: revertError } = await supabase
           .from("orders")
           .update({ status: "pending", reason_for_denial: null })
-          .eq("order_id", order_id)])
-      if (budgetError || revertError) {
-        console.error("Error reverting order:", budgetError || revertError);
-        return res
-          .status(400)
-          .json({ error: revertError?.message || budgetError?.message });
+          .eq("order_id", order_id);
+        if (revertError) {
+          console.error("Error reverting order:", revertError);
+          return res.status(400).json({ error: revertError.message });
+        }
       }
+
       res.status(200).json({ message: "Status updated to pending" });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -169,9 +180,8 @@ const adminController = {
       const requestorEmail = orderData.users.email;
       const itemName = orderData.items.item_name || "<no-name-provided>";;
       const itemLink = orderData.items.order_link;
-      console.log("Requestor email:", requestorEmail);
-      // send email notification to requestor
-      console.log("Email sent to " + requestorEmail + ": Your order " + itemName + " for " + itemLink + " has been denied. Reason: " + reason);
+      sendEmails(requestorEmail, itemName, itemLink, "Order Denied", `Your order ${itemName} for ${itemLink} has been denied. Reason: ${reason}`);
+
       if (error) {
         console.error("Error denying order:", error);
         return res.status(400).json({ error: error.message });
@@ -261,8 +271,7 @@ const adminController = {
       const requestorEmail = orderData.users.email;
       const itemName = orderData.items.item_name || "<no-name-provided>";;
       const itemLink = orderData.items.order_link;
-      console.log("Requestor email:", requestorEmail);
-      console.log("Email sent to " + requestorEmail + ": Your order " + itemName + " for " + itemLink + " is ready for pickup.");
+      sendEmails(requestorEmail, itemName, itemLink, "Order Ready for Pickup", `Your order ${itemName} for ${itemLink} is ready for pickup.`);
 
       res.status(200).json({ message: "Status updated to ready" });
     } catch (error) {
@@ -298,16 +307,49 @@ const adminController = {
         .select("*, items(*)")
         .gte("request_date", startDate.toISOString().split('T')[0])
         .lte("request_date", today.toISOString().split('T')[0]);
+
+      // need email... should we hardcode or fetch admin email from users table?
+      const { data: adminData, error: adminError } = await supabase
+        .from("users")
+        .select("email")
+        .eq("position_title", "admin");
+      if (adminError) {
+        console.error("Error fetching admin email:", adminError);
+        return res.status(400).json({ error: adminError.message });
+      };
+      const emails = adminData.map(user => user.email);
+
+      // send email to admin with weekly orders
+      const emailSubject = "Weekly Orders Summary";
+      const emailBody = `Here are the orders from the past week:\n\n${orders.map(order => `Order ID: ${order.order_id}, Item: ${order.items.item_name}, Request Date: ${order.request_date}`).join('\n')}`;
+      emails.forEach(email => {
+        sendEmails(email, "Weekly Orders Summary", "", emailSubject, emailBody);
+      });
+
       if (error) {
         console.error("Error fetching weekly orders:", error);
         return res.status(400).json({ error: error.message });
       }
+      console.log(emails);
       res.status(200).json(orders);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  }
+  },
+
+  // function for sending emails
+  
 };
+
+function sendEmails(requestorEmail, itemName, itemLink, emailSubject, emailBody) {
+  console.log(`Email sent to ${requestorEmail}`);
+  console.log(`Subject: ${emailSubject}`);
+  console.log(`Body: ${emailBody}`);
+  console.log(`Item: ${itemName}`);
+  console.log(`Link: ${itemLink}`);
+
+
+}
 
 
 
