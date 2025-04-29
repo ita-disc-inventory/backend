@@ -21,12 +21,12 @@ const authMiddleware = async (req, res, next) => {
         .status(401)
         .json({ error: 'Invalid or expired session token' });
     }
-
+    console.log('User authenticated:', user);
     // Get user metadata including position_title
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('position_title')
-      .eq('id', user.id)
+      .eq('email', user.email)
       .single();
 
     if (userError) {
