@@ -1,4 +1,43 @@
+const { Resend } = require("resend");
 const supabase = require("../config/supabase");
+
+// Email sending function
+const sendEmails = async (requestorEmail, emailSubject, emailBody) => {
+  console.log('===== SENDING EMAIL =====');
+  console.log(`To: ${requestorEmail}`);
+  console.log(`Subject: ${emailSubject}`);
+  console.log(`Body: ${emailBody}`);
+  console.log('API Key present:', !!process.env.RESEND_API_KEY);
+
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('Resend instance created');
+
+    try {
+      console.log('Attempting to send email...');
+      const { data, error } = await resend.emails.send({
+        from: "ITA Chicago <kbuckley@itachicago.org>",
+        to: [requestorEmail],
+        subject: `${emailSubject}`,
+        html: `<p>${emailBody}</p>`,
+      });
+
+      if (error) {
+        console.error('RESEND API ERROR:', error);
+        return { success: false, error };
+      }
+
+      console.log('EMAIL SENT SUCCESSFULLY:', data);
+      return { success: true, data };
+    } catch (err) {
+      console.error('UNEXPECTED EMAIL ERROR:', err);
+      return { success: false, error: err };
+    }
+  } catch (initError) {
+    console.error('ERROR INITIALIZING RESEND:', initError);
+    return { success: false, error: initError };
+  }
+};
 
 const adminController = {
   async approveOrder(req, res) {
@@ -10,8 +49,6 @@ const adminController = {
         .select("total_cost, program_id, programs(program_budget)")
         .eq("order_id", order_id)
         .single();
-
-
 
       // Check for cost and budget retrieval error
 
@@ -40,9 +77,8 @@ const adminController = {
             .from("programs")
             .update({ program_budget: newbudget })
             .eq("program_id", orderCostBudget.program_id),
-        ],
+        ]
       );
-
 
       if (orderError || budgetError) {
         console.error("Error processing request:", orderError || budgetError);
@@ -65,8 +101,16 @@ const adminController = {
       const requestorEmail = requestorData.users.email;
       const itemName = requestorData.items.item_name || "<no-name-provided>";
       const itemLink = requestorData.items.order_link;
-      sendEmails(requestorEmail, itemName, itemLink, "Order Approved", `Your order ${itemName} for ${itemLink} has been approved.`);
-
+      try {
+        const emailResult = await sendEmails(
+          requestorEmail,
+          "Order Approved",
+          `Your order ${itemName} for ${itemLink} has been approved.`
+        );
+        console.log('Email result:', emailResult);
+      } catch (emailError) {
+        console.error('Failed to send approval email:', emailError);
+      }
 
       res.status(200).json({ message: "Status updated to approved" });
     } catch (error) {
@@ -82,7 +126,7 @@ const adminController = {
         .from("orders")
         .select("total_cost, program_id, programs(program_budget), status")
         .eq("order_id", order_id)
-        .single()
+        .single();
       if (getCostError) {
         console.error("Error getting cost and budget:", getCostError);
         return res.status(400).json({ error: getCostError.message });
@@ -101,7 +145,8 @@ const adminController = {
             supabase
               .from("orders")
               .update({ status: "pending", reason_for_denial: null })
-              .eq("order_id", order_id)])
+              .eq("order_id", order_id),
+          ]);
         if (budgetError || revertError) {
           console.error("Error reverting order:", budgetError || revertError);
           return res
@@ -145,9 +190,13 @@ const adminController = {
         console.error("Error getting order data:", orderError);
       }
       const requestorEmail = orderData.users.email;
-      const itemName = orderData.items.item_name || "<no-name-provided>";;
+      const itemName = orderData.items.item_name || "<no-name-provided>";
       const itemLink = orderData.items.order_link;
-      sendEmails(requestorEmail, itemName, itemLink, "Order Denied", `Your order ${itemName} for ${itemLink} has been denied. Reason: ${reason}`);
+      sendEmails(
+        requestorEmail,
+        "Order Denied",
+        `Your order ${itemName} for ${itemLink} has been denied. Reason: ${reason}`
+      );
 
       if (error) {
         console.error("Error denying order:", error);
@@ -190,7 +239,6 @@ const adminController = {
         return res.status(400).json({ error: error.message });
       }
 
-
       res.status(200).json({ message: "Status updated to arrived" });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -221,9 +269,18 @@ const adminController = {
         console.error("Error getting order data:", orderError);
       }
       const requestorEmail = orderData.users.email;
-      const itemName = orderData.items.item_name || "<no-name-provided>";;
+      const itemName = orderData.items.item_name || "<no-name-provided>";
       const itemLink = orderData.items.order_link;
-      sendEmails(requestorEmail, itemName, itemLink, "Order Ready for Pickup", `Your order ${itemName} for ${itemLink} is ready for pickup.`);
+      try {
+        const emailResult = await sendEmails(
+          requestorEmail,
+          "Order Ready for Pickup",
+          `Your order ${itemName} for ${itemLink} is ready for pickup.`
+        );
+        console.log('Email result:', emailResult);
+      } catch (emailError) {
+        console.error('Failed to send ready notification email:', emailError);
+      }
 
       res.status(200).json({ message: "Status updated to ready" });
     } catch (error) {
@@ -252,13 +309,17 @@ const adminController = {
     try {
       // get today's date
       const today = new Date();
-      const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7);
+      const startDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() - 7
+      );
       // const { start_date, end_date } = req.query;
       const { data: orders, error } = await supabase
         .from("orders")
         .select("*, items(*)")
-        .gte("request_date", startDate.toISOString().split('T')[0])
-        .lte("request_date", today.toISOString().split('T')[0]);
+        .gte("request_date", startDate.toISOString().split("T")[0])
+        .lte("request_date", today.toISOString().split("T")[0]);
 
       // need email... should we hardcode or fetch admin email from users table?
       const { data: adminData, error: adminError } = await supabase
@@ -268,15 +329,21 @@ const adminController = {
       if (adminError) {
         console.error("Error fetching admin email:", adminError);
         return res.status(400).json({ error: adminError.message });
-      };
-      const emails = adminData.map(user => user.email);
+      }
+      const emails = adminData.map((user) => user.email);
 
       // send email to admin with weekly orders
       const emailSubject = "Weekly Orders Summary";
-      const emailBody = `Here are the orders from the past week:\n\n${orders.map(order => `Order ID: ${order.order_id}, Item: ${order.items.item_name}, Request Date: ${order.request_date}`).join('\n')}`;
-      emails.forEach(email => {
-        sendEmails(email, "Weekly Orders Summary", "", emailSubject, emailBody);
-      });
+      const emailBody = `Here are the orders from the past week:\n\n${orders.map((order) => `Order ID: ${order.order_id}, Item: ${order.items.item_name}, Request Date: ${order.request_date}`).join("\n")}`;
+      // Send emails one by one and await each result
+      for (const email of emails) {
+        try {
+          const emailResult = await sendEmails(email, emailSubject, emailBody);
+          console.log(`Weekly summary email result for ${email}:`, emailResult);
+        } catch (emailError) {
+          console.error(`Failed to send weekly summary to ${email}:`, emailError);
+        }
+      }
 
       if (error) {
         console.error("Error fetching weekly orders:", error);
@@ -289,20 +356,8 @@ const adminController = {
     }
   },
 
-  // function for sending emails
-
+  // function for sending emails is now defined outside the controller object
 };
-
-function sendEmails(requestorEmail, itemName, itemLink, emailSubject, emailBody) {
-  console.log(`Email sent to ${requestorEmail}`);
-  console.log(`Subject: ${emailSubject}`);
-  console.log(`Body: ${emailBody}`);
-  console.log(`Item: ${itemName}`);
-  console.log(`Link: ${itemLink}`);
-
-
-}
-
 
 
 

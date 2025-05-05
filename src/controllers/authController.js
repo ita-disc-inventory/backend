@@ -112,7 +112,7 @@ const authController = {
         error: userError,
       } = await supabase.auth.getUser(token);
 
-      console.log("GetMe Supabase auth result:", { user, error: userError });
+      // console.log("GetMe Supabase auth result:", { user, error: userError });
 
       if (userError || !user) {
         return res.status(401).json({ error: "Authentication failed" });
