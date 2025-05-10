@@ -200,7 +200,7 @@ const authController = {
       console.log("Getting all users...");
       const { data: users, error } = await supabase
         .from("users")
-        .select("username, email, firstname, lastname, position_title, specialization")
+        .select("username, email, firstname, lastname, position_title, specialization, approved")
         .order("username", { ascending: true });
 
       if (error) {
