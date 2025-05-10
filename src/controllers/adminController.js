@@ -1,5 +1,6 @@
 const { Resend } = require("resend");
 const supabase = require("../config/supabase");
+const { getAllUsers } = require("./authController");
 
 // Email sending function
 const sendEmails = async (requestorEmail, emailSubject, emailBody) => {
