@@ -357,9 +357,57 @@ const adminController = {
     }
   },
 
+  async getAllUsers(req, res) {
+    try {
+      const { data: users, error } = await supabase
+        .from("users")
+        .select("id, username, firstname, lastname, position_title, specialization, created_at, approved")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching users:", error);
+        return res.status(400).json({ error: error.message });
+      }
+
+      res.status(200).json(users);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  async updateUser(req, res) {
+    try {
+      const user_id = req.params.user_id;
+      const updates = req.body;
+
+      // Validate that only allowed fields are being updated
+      const allowedFields = ['specialization', 'position_title', 'approved'];
+      const filteredUpdates = Object.keys(updates)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = updates[key];
+          return obj;
+        }, {});
+
+      const { data, error } = await supabase
+        .from("users")
+        .update(filteredUpdates)
+        .eq("id", user_id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error updating user:", error);
+        return res.status(400).json({ error: error.message });
+      }
+
+      res.status(200).json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
   // function for sending emails is now defined outside the controller object
 };
-
-
 
 module.exports = adminController;

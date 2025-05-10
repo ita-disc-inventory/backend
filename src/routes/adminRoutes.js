@@ -11,4 +11,8 @@ router.put("/budget/:program_id", adminController.updateBudget);
 router.put("/revert/:order_id", adminController.revertOrder);
 router.get("/weekly", adminController.getWeeklyOrders);
 
+// New routes for user management
+router.get("/users", adminController.getAllUsers);
+router.put("/users/:user_id", adminController.updateUser);
+
 module.exports = router;
