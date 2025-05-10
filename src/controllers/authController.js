@@ -24,6 +24,12 @@ const authController = {
         password,
       });
 
+      let approved = false;
+
+      if (position === 'admin') {
+        approved = true;
+      }
+
       if (authError) {
         return res.status(400).json({ error: authError.message });
       }
@@ -38,6 +44,7 @@ const authController = {
             lastname: lastname || null,
             specialization: specialization || null,
             position_title: position || "therapist",
+            approved: approved
           },
         ])
         .select()
@@ -193,7 +200,7 @@ const authController = {
       console.log("Getting all users...");
       const { data: users, error } = await supabase
         .from("users")
-        .select("username, email, firstname, lastname, position_title, specialization")
+        .select("username, email, firstname, lastname, position_title, specialization, approved")
         .order("username", { ascending: true });
 
       if (error) {
