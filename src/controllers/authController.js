@@ -24,6 +24,12 @@ const authController = {
         password,
       });
 
+      let approved = false;
+
+      if (position === 'admin') {
+        approved = true;
+      }
+
       if (authError) {
         return res.status(400).json({ error: authError.message });
       }
@@ -38,6 +44,7 @@ const authController = {
             lastname: lastname || null,
             specialization: specialization || null,
             position_title: position || "therapist",
+            approved: approved
           },
         ])
         .select()

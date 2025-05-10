@@ -3,6 +3,17 @@ const supabase = require("../config/supabase");
 const therapistController = {
   async postNewOrder(req, res) {
     try {
+      // check if user is approved in system
+      const { data: user, error: userError } = await supabase
+        .from("users")
+        .select()
+        .eq('id', req.body.requestor_id)
+        .eq("approved", true)
+
+      if (user.length === 0) {
+        console.error("User is not approved:", userError);
+      }
+
       // check if item id exists in items table
       const { data: items, error: checkItemError } = await supabase
         .from("items")
