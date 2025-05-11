@@ -17,7 +17,7 @@ const sendEmails = async (requestorEmail, emailSubject, emailBody) => {
     try {
       console.log('Attempting to send email...');
       const { data, error } = await resend.emails.send({
-        from: "ITA Chicago <kbuckley@itachicago.org>",
+        from: "ITA Chicago <jwolfe@itachicago.org>",
         to: [requestorEmail],
         subject: `${emailSubject}`,
         html: `<p>${emailBody}</p>`,
