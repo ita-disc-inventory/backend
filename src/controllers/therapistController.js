@@ -12,6 +12,7 @@ const therapistController = {
 
       if (user.length === 0) {
         console.error("User is not approved:", userError);
+        return res.status(400).json({ error: "User is not approved" });
       }
 
       // check if item id exists in items table
