@@ -1,4 +1,4 @@
-const supabase = require("../config/supabase");
+const { supabase, getSupabaseClientWithToken } = require("../config/supabase");
 
 const authController = {
   async signup(req, res) {
@@ -19,10 +19,12 @@ const authController = {
         });
       }
 
-      const { error: authError } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
       });
+      const token = authData?.session?.access_token;
+      const supabaseUser = getSupabaseClientWithToken(token);
 
       let approved = false;
 
@@ -34,7 +36,7 @@ const authController = {
         return res.status(400).json({ error: authError.message });
       }
 
-      const { data: userData, error: userError } = await supabase
+      const { data: userData, error: userError } = await supabaseUser
         .from("users")
         .insert([
           {
@@ -73,7 +75,6 @@ const authController = {
           error: "Email and password are required",
         });
       }
-      console.log("Got email and passwordHash", email, password);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password: password,
@@ -113,11 +114,12 @@ const authController = {
       if (!token) {
         return res.status(401).json({ error: "Not authenticated" });
       }
+      const supabaseUser = getSupabaseClientWithToken(token);
 
       const {
         data: { user },
         error: userError,
-      } = await supabase.auth.getUser(token);
+      } = await supabaseUser.auth.getUser(token);
 
       // console.log("GetMe Supabase auth result:", { user, error: userError });
 
@@ -125,7 +127,7 @@ const authController = {
         return res.status(401).json({ error: "Authentication failed" });
       }
 
-      const { data: userData, error: dbError } = await supabase
+      const { data: userData, error: dbError } = await supabaseUser
         .from("users")
         .select(
           "id, username, email, firstname, lastname, specialization, position_title, approved",
@@ -197,8 +199,14 @@ const authController = {
   },
   async getAllUsers(req, res) {
     try {
+      const token =
+        req.cookies.session || req.headers.authorization?.split(" ")[1];
+      const supabaseUser = getSupabaseClientWithToken(token);
+      if (!token) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
       console.log("Getting all users...");
-      const { data: users, error } = await supabase
+      const { data: users, error } = await supabaseUser
         .from("users")
         .select("username, email, firstname, lastname, position_title, specialization, approved")
         .order("username", { ascending: true });
@@ -242,6 +250,7 @@ const authController = {
       console.log("OAuth callback received:", req.query);
       const { code } = req.query;
 
+
       if (!code) {
         throw new Error("No code provided");
       }
@@ -253,6 +262,8 @@ const authController = {
 
       const { session, user } = data;
       console.log("Got user:", user.email);
+      const access_token = session.access_token;
+      const supabaseUser = getSupabaseClientWithToken(access_token);  
 
       const { data: existingUser, error: queryError } = await supabase
         .from("users")
@@ -274,7 +285,7 @@ const authController = {
           lastname: user.user_metadata?.family_name || null,
         };
 
-        const { data: insertedUser, error: insertError } = await supabase
+        const { data: insertedUser, error: insertError } = await supabaseUser
           .from("users")
           .insert([newUser])
           .select()
@@ -315,11 +326,13 @@ const authController = {
       if (!access_token) {
         return res.status(400).json({ error: "No access token provided" });
       }
+      const supabaseUser = getSupabaseClientWithToken(access_token);
+
 
       const {
         data: { user },
         error: userError,
-      } = await supabase.auth.getUser(access_token);
+      } = await supabaseUser.auth.getUser(access_token);
 
       if (userError) {
         console.error("Error getting user:", userError);
@@ -328,11 +341,12 @@ const authController = {
 
       console.log("Got user data:", user.email);
 
-      const { data: existingUser, error: existingUserError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", user.email)
-        .single();
+      const { data: existingUser, error: existingUserError } =
+        await supabaseUser
+          .from("users")
+          .select("*")
+          .eq("email", user.email)
+          .single();
 
       console.log("Existing user check:", {
         exists: !!existingUser,
@@ -354,7 +368,7 @@ const authController = {
             null,
         };
 
-        const { data: insertedUser, error: insertError } = await supabase
+        const { data: insertedUser, error: insertError } = await supabaseUser
           .from("users")
           .insert([newUser])
           .select()
@@ -397,7 +411,7 @@ const authController = {
       const redirectTo = `${process.env.FRONTEND_URL}/auth/reset-password`;
       console.log("Setting redirect URL:", redirectTo);
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabaseUser.auth.resetPasswordForEmail(email, {
         redirectTo: redirectTo,
       });
 

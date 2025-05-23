@@ -1,5 +1,5 @@
 const { Resend } = require("resend");
-const supabase = require("../config/supabase");
+const { supabase, getSupabaseClientWithToken } = require("../config/supabase");
 const { getAllUsers } = require("./authController");
 
 // Email sending function
@@ -45,11 +45,14 @@ const adminController = {
     try {
       // // first get program's budget
       const order_id = req.params.order_id;
-      const { data: orderCostBudget, error: getCostError } = await supabase
-        .from("orders")
-        .select("total_cost, program_id, programs(program_budget)")
-        .eq("order_id", order_id)
-        .single();
+      const access_token = req.headers.authorization.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
+      const { data: orderCostBudget, error: getCostError } =
+        await supabaseWithToken
+          .from("orders")
+          .select("total_cost, program_id, programs(program_budget)")
+          .eq("order_id", order_id)
+          .single();
 
       // Check for cost and budget retrieval error
 
@@ -70,11 +73,11 @@ const adminController = {
         orderCostBudget.programs.program_budget - orderCostBudget.total_cost;
       const [{ error: orderError }, { error: budgetError }] = await Promise.all(
         [
-          supabase
+          supabaseWithToken
             .from("orders")
             .update({ status: "approved", reason_for_denial: null })
             .eq("order_id", order_id),
-          supabase
+          supabaseWithToken
             .from("programs")
             .update({ program_budget: newbudget })
             .eq("program_id", orderCostBudget.program_id),
@@ -122,8 +125,10 @@ const adminController = {
     try {
       // check if order is not cancelled
       const order_id = req.params.order_id;
+      const access_token = req.headers.authorization.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
 
-      const { data: orderCostBudget, error: getCostError } = await supabase
+      const { data: orderCostBudget, error: getCostError } = await supabaseWithToken
         .from("orders")
         .select("total_cost, program_id, programs(program_budget), status")
         .eq("order_id", order_id)
@@ -139,11 +144,11 @@ const adminController = {
       if (status === "approved") {
         const [{ error: budgetError }, { error: revertError }] =
           await Promise.all([
-            supabase
+            supabaseWithToken
               .from("programs")
               .update({ program_budget: newbudget })
               .eq("program_id", orderCostBudget.program_id),
-            supabase
+            supabaseWithToken
               .from("orders")
               .update({ status: "pending", reason_for_denial: null })
               .eq("order_id", order_id),
@@ -155,7 +160,7 @@ const adminController = {
             .json({ error: revertError?.message || budgetError?.message });
         }
       } else if (status === "denied") {
-        const { error: revertError } = await supabase
+        const { error: revertError } = await supabaseWithToken
           .from("orders")
           .update({ status: "pending", reason_for_denial: null })
           .eq("order_id", order_id);
@@ -175,14 +180,16 @@ const adminController = {
       // check if order is not cancelled
       const order_id = req.params.order_id;
       const reason = req.body.reason_for_denial;
+      const access_token = req.headers.authorization.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
 
       // set order status to denied
-      const { error } = await supabase
+      const { error } = await supabaseWithToken
         .from("orders")
         .update({ status: "denied", reason_for_denial: reason })
         .eq("order_id", order_id);
       // get item name and link, user email
-      const { data: orderData, error: orderError } = await supabase
+      const { data: orderData, error: orderError } = await supabaseWithToken
         .from("orders")
         .select("requestor_id, users(email), items(*)")
         .eq("order_id", order_id)
@@ -213,8 +220,10 @@ const adminController = {
     try {
       const { tracking_number } = req.body;
       const order_id = req.params.order_id;
+      const access_token = req.headers.authorization.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
 
-      const { error } = await supabase
+      const { error } = await supabaseWithToken
         .from("orders")
         .update({ tracking_number: tracking_number })
         .eq("order_id", order_id);
@@ -231,7 +240,9 @@ const adminController = {
     try {
       // update order status to arrived
       const order_id = req.params.order_id;
-      const { error } = await supabase
+      const access_token = req.headers.authorization.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
+      const { error } = await supabaseWithToken
         .from("orders")
         .update({ status: "arrived" })
         .eq("order_id", order_id);
@@ -250,8 +261,10 @@ const adminController = {
       // update order status to ready (for pickup)
       // check if order is not cancelled
       const order_id = req.params.order_id;
+      const access_token = req.headers.authorization.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
 
-      const { error } = await supabase
+      const { error } = await supabaseWithToken
         .from("orders")
         .update({ status: "ready" })
         .eq("order_id", order_id);
@@ -261,7 +274,7 @@ const adminController = {
       }
 
       // get item name and link, user email
-      const { data: orderData, error: orderError } = await supabase
+      const { data: orderData, error: orderError } = await supabaseWithToken
         .from("orders")
         .select("requestor_id, users(email), items(*)")
         .eq("order_id", order_id)
@@ -291,9 +304,11 @@ const adminController = {
 
   async updateBudget(req, res) {
     try {
+      const access_token = req.headers.authorization.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
       const program_id = req.params.program_id;
       const { budget } = req.body;
-      const { error } = await supabase
+      const { error } = await supabaseWithToken
         .from("programs")
         .update({ program_budget: budget })
         .eq("program_id", program_id);
@@ -315,7 +330,7 @@ const adminController = {
         today.getMonth(),
         today.getDate() - 7
       );
-      // const { start_date, end_date } = req.query;
+      
       const { data: orders, error } = await supabase
         .from("orders")
         .select("*, items(*)")
@@ -359,7 +374,9 @@ const adminController = {
 
   async getAllUsers(req, res) {
     try {
-      const { data: users, error } = await supabase
+      const access_token = req.headers.authorization.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
+      const { data: users, error } = await supabaseWithToken
         .from("users")
         .select("id, username, firstname, lastname, position_title, specialization, created_at, approved")
         .order("created_at", { ascending: false });
@@ -379,6 +396,8 @@ const adminController = {
     try {
       const user_id = req.params.user_id;
       const updates = req.body;
+      const access_token = req.headers.authorization?.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
 
       // Validate that only allowed fields are being updated
       const allowedFields = ['specialization', 'position_title', 'approved'];
@@ -389,7 +408,7 @@ const adminController = {
           return obj;
         }, {});
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseWithToken
         .from("users")
         .update(filteredUpdates)
         .eq("id", user_id)
