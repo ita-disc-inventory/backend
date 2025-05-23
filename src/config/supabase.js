@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 function getSupabaseClientWithToken(access_token) {
   return createClient(supabaseUrl, supabaseKey, {
     global: {
@@ -18,7 +19,7 @@ function getSupabaseClientWithToken(access_token) {
   });
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey, {
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,

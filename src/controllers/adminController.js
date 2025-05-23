@@ -330,7 +330,7 @@ const adminController = {
         today.getMonth(),
         today.getDate() - 7
       );
-      const access_token = req.headers.authorization.split(" ")[1];
+      // const access_token = req.headers.authorization.split(" ")[1];
       // const { start_date, end_date } = req.query;
       const { data: orders, error } = await supabase
         .from("orders")
