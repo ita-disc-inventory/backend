@@ -1,13 +1,16 @@
-const supabase = require("../config/supabase");
+const { supabase, getSupabaseClientWithToken } = require("../config/supabase");
 
 const therapistController = {
   async postNewOrder(req, res) {
     try {
+      const access_token =
+        req.cookies.session || req.headers.authorization?.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
       // check if user is approved in system
-      const { data: user, error: userError } = await supabase
+      const { data: user, error: userError } = await supabaseWithToken
         .from("users")
         .select()
-        .eq('id', req.body.requestor_id)
+        .eq("id", req.body.requestor_id)
         .eq("approved", true)
 
       if (user.length === 0) {
@@ -16,7 +19,7 @@ const therapistController = {
       }
 
       // check if item id exists in items table
-      const { data: items, error: checkItemError } = await supabase
+      const { data: items, error: checkItemError } = await supabaseWithToken
         .from("items")
         .select()
         .eq("order_link", req.body.order_link);
@@ -28,7 +31,7 @@ const therapistController = {
       let itemId;
       if (items.length === 0) {
         // insert item to items table
-        const { data, error: insertItemError } = await supabase
+        const { data, error: insertItemError } = await supabaseWithToken
           .from("items")
           .insert([
             {
@@ -51,7 +54,7 @@ const therapistController = {
         itemId = items[0].item_id;
       }
 
-      const { error } = await supabase.from("orders").insert([
+      const { error } = await supabaseWithToken.from("orders").insert([
         {
           request_date: req.body.request_date,
           priority_level: req.body.priority_level,
@@ -79,8 +82,11 @@ const therapistController = {
 
   async deleteOrder(req, res) {
     try {
+      const access_token =
+        req.cookies.session || req.headers.authorization?.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
       // set order status to cancelled
-      const { error: updateError } = await supabase
+      const { error: updateError } = await supabaseWithToken
         .from("orders")
         .update({ status: "cancelled" })
         .eq("order_id", req.params.order_id);
@@ -98,7 +104,10 @@ const therapistController = {
 
   async updateSpecialization(req, res) {
     try {
-      const { error } = await supabase
+      const access_token =
+        req.cookies.session || req.headers.authorization?.split(" ")[1];
+      const supabaseWithToken = getSupabaseClientWithToken(access_token);
+      const { error } = await supabaseWithToken
         .from("users")
         .update({ specialization: req.body.specialization })
         .eq("id", req.params.user_id);
