@@ -401,8 +401,8 @@ const authController = {
   async requestPasswordReset(req, res) {
     try {
       const { email } = req.body;
-      const access_tokne = req.headers.authorization?.split(" ")[1];
-      const supabaseUser = getSupabaseClientWithToken(access_tokne);
+      const access_token = req.headers.authorization?.split(" ")[1];
+      const supabaseUser = getSupabaseClientWithToken(access_token);
 
       if (!email) {
         return res.status(400).json({
