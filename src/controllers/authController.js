@@ -24,9 +24,7 @@ const authController = {
         password,
       });
       const token = req.headers.authorization?.split(" ")[1] || authData.session?.access_token;
-      console.log(token);
-      console.log("Signup authData:", authData);
-      console.log("Signup authError:", authError);
+
       const supabaseUser = getSupabaseClientWithToken(token);
 
       let approved = false;
