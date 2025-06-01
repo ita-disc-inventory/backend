@@ -23,7 +23,8 @@ const authController = {
         email,
         password,
       });
-      const token = authData?.session?.access_token;
+      const token = req.headers.authorization?.split(" ")[1] || authData.session?.access_token;
+
       const supabaseUser = getSupabaseClientWithToken(token);
 
       let approved = false;
@@ -263,7 +264,7 @@ const authController = {
       const { session, user } = data;
       console.log("Got user:", user.email);
       const access_token = session.access_token;
-      const supabaseUser = getSupabaseClientWithToken(access_token);  
+      const supabaseUser = getSupabaseClientWithToken(access_token);
 
       const { data: existingUser, error: queryError } = await supabase
         .from("users")
