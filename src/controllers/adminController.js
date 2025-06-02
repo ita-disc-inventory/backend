@@ -76,11 +76,13 @@ const adminController = {
           supabaseWithToken
             .from("orders")
             .update({ status: "approved", reason_for_denial: null })
-            .eq("order_id", order_id),
+            .eq("order_id", order_id)
+            .select(),
           supabaseWithToken
             .from("programs")
             .update({ program_budget: newbudget })
-            .eq("program_id", orderCostBudget.program_id),
+            .eq("program_id", orderCostBudget.program_id)
+            .select(),
         ]
       );
 
@@ -147,11 +149,13 @@ const adminController = {
             supabaseWithToken
               .from("programs")
               .update({ program_budget: newbudget })
-              .eq("program_id", orderCostBudget.program_id),
+              .eq("program_id", orderCostBudget.program_id)
+              .select(),
             supabaseWithToken
               .from("orders")
               .update({ status: "pending", reason_for_denial: null })
-              .eq("order_id", order_id),
+              .eq("order_id", order_id)
+              .select(),
           ]);
         if (budgetError || revertError) {
           console.error("Error reverting order:", budgetError || revertError);
@@ -245,7 +249,8 @@ const adminController = {
       const { error } = await supabaseWithToken
         .from("orders")
         .update({ status: "arrived" })
-        .eq("order_id", order_id);
+        .eq("order_id", order_id)
+        .select();
       if (error) {
         console.error("Error setting order to arrived:", error);
         return res.status(400).json({ error: error.message });
@@ -267,7 +272,8 @@ const adminController = {
       const { error } = await supabaseWithToken
         .from("orders")
         .update({ status: "ready" })
-        .eq("order_id", order_id);
+        .eq("order_id", order_id)
+        .select();
       if (error) {
         console.error("Error setting order to ready:", error);
         return res.status(400).json({ error: error.message });
@@ -311,7 +317,8 @@ const adminController = {
       const { error } = await supabaseWithToken
         .from("programs")
         .update({ program_budget: budget })
-        .eq("program_id", program_id);
+        .eq("program_id", program_id)
+        .select();
       if (error) {
         console.error("Error inserting new budget to programs table:", error);
         return res.status(400).json({ error: error.message });
@@ -330,7 +337,7 @@ const adminController = {
         today.getMonth(),
         today.getDate() - 7
       );
-      
+
       const { data: orders, error } = await supabase
         .from("orders")
         .select("*, items(*)")
